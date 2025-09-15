@@ -47,6 +47,13 @@ export interface SafetyPlace {
   availableAmbulances?: number;
 }
 
+export interface HazardArea {
+  id: string;
+  center: { lat: number; lng: number };
+  radiusMeters: number;
+  label?: string;
+}
+
 interface CommandStore {
   // State
   alerts: Alert[];
@@ -56,6 +63,7 @@ interface CommandStore {
   selectedAlert: Alert | null;
   userLocation: { lat: number; lng: number; accuracy?: number } | null;
   safetyPlaces: SafetyPlace[];
+  hazardAreas: HazardArea[];
   
   // Actions
   addAlert: (alert: Omit<Alert, 'id' | 'timestamp'>) => void;
@@ -66,6 +74,8 @@ interface CommandStore {
   updateStatistics: (updates: Partial<Statistics>) => void;
   updateUserLocation: (loc: { lat: number; lng: number; accuracy?: number } | null) => void;
   setSafetyPlaces: (places: SafetyPlace[]) => void;
+  addHazardArea: (area: Omit<HazardArea, 'id'>) => void;
+  removeHazardArea: (id: string) => void;
 }
 
 // Mock data for demo
@@ -155,6 +165,7 @@ export const useCommandStore = create<CommandStore>((set) => ({
   selectedAlert: null,
   userLocation: null,
   safetyPlaces: [],
+  hazardAreas: [],
   
   // Actions
   addAlert: (alert) => set((state) => ({
@@ -197,4 +208,16 @@ export const useCommandStore = create<CommandStore>((set) => ({
 
   updateUserLocation: (loc) => set(() => ({ userLocation: loc })),
   setSafetyPlaces: (places) => set(() => ({ safetyPlaces: places })),
+  addHazardArea: (area) => set((state) => ({
+    hazardAreas: [
+      {
+        ...area,
+        id: Math.random().toString(36).substr(2, 9),
+      },
+      ...state.hazardAreas,
+    ],
+  })),
+  removeHazardArea: (id) => set((state) => ({
+    hazardAreas: state.hazardAreas.filter(h => h.id !== id),
+  })),
 }));

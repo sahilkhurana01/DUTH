@@ -17,6 +17,7 @@ export const MapContainer: React.FC = () => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const { alerts, resources, selectedAlert, selectAlert, userLocation, updateUserLocation, safetyPlaces, setSafetyPlaces } = useCommandStore();
+  const { hazardAreas, addHazardArea, removeHazardArea } = useCommandStore();
 
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
@@ -42,6 +43,15 @@ export const MapContainer: React.FC = () => {
     L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
     mapInstanceRef.current = map;
+
+    // Interaction: Shift+Click to add hazard circle (disaster-prone area)
+    const onMapClick = (e: L.LeafletMouseEvent) => {
+      // Only add when shift key is pressed
+      if ((e.originalEvent as MouseEvent).shiftKey) {
+        addHazardArea({ center: { lat: e.latlng.lat, lng: e.latlng.lng }, radiusMeters: 500 });
+      }
+    };
+    map.on('click', onMapClick);
 
     // Education POIs layer group (schools/colleges)
     const educationLayer = L.layerGroup().addTo(map);
@@ -105,6 +115,7 @@ export const MapContainer: React.FC = () => {
 
     return () => {
       if (mapInstanceRef.current) {
+        mapInstanceRef.current.off('click', onMapClick);
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
@@ -275,7 +286,7 @@ export const MapContainer: React.FC = () => {
     const map = mapInstanceRef.current;
     const layer = L.layerGroup().addTo(map);
     safetyPlaces.forEach((p) => {
-      const color = p.type === 'hospital' ? '#60a5fa' : p.type === 'shelter' ? '#22c55e' : '#a3e635';
+      const color = p.type === 'hospital' ? '#60a5fa' : p.type === 'shelter' ? '#16a34a' : '#a3e635';
       const marker = L.circleMarker([p.location.lat, p.location.lng], {
         radius: 5,
         color,
@@ -297,6 +308,27 @@ export const MapContainer: React.FC = () => {
     });
     return () => { map.removeLayer(layer); };
   }, [safetyPlaces, resources]);
+
+  // Render hazard areas
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    const layer = L.layerGroup().addTo(map);
+
+    hazardAreas.forEach((area) => {
+      const circle = L.circle([area.center.lat, area.center.lng], {
+        radius: area.radiusMeters,
+        color: '#ef4444',
+        weight: 2,
+        fillColor: '#ef4444',
+        fillOpacity: 0.15,
+      }).addTo(layer);
+      circle.bindTooltip('Hazard area', { direction: 'top' });
+      circle.on('click', () => removeHazardArea(area.id));
+    });
+
+    return () => { map.removeLayer(layer); };
+  }, [hazardAreas, removeHazardArea]);
 
   // Focus on selected alert
   useEffect(() => {
